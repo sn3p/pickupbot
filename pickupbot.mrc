@@ -1,35 +1,32 @@
-/*
-*  -----------------------------
-*  Pickupbot v 1.6d
-*  By MoehMan
-*  http://www.moehman.nl
-*  Have fun!
-*  -----------------------------
+/* --------------------------------------------------------------------------
+*  Pickupbot 1.6e Gambino Edition
+*  By MoehMan and sn3p
+*  --------------------------------------------------------------------------
 */
 
-/* 
--- CONFIG -- 
+/*
+-- CONFIG --
 */
 
 alias pb.getserver {
-  ;change this to switch server
+  ; change this to switch server
   return irc.quakenet.org:6667
 }
 
 alias pb.getchannel {
-  ;change this to your channel
-  ;if you use a password, just put it after the channel (e.g. #channel password)
+  ; change this to your channel
+  ; if you use a password, just put it after the channel (e.g. #channel password)
   return #channel
 }
 
 alias pb.useadminchan {
-  ;you can enable this to have an adminchannel, in which you can use bans and look up bans only
+  ; you can enable this to have an adminchannel, in which you can use bans and look up bans only
+  ; if you set this to $true, dont forget to edit the alias below (to set an adminchannel)
   return $true
-  ;if you set this to $true, dont forget to edit the alias below (to set an adminchannel)
 }
 
 alias pb.adminchan {
-  ;adminchannel, for ban management
+  ; adminchannel, for ban management
   return #channel.admin
 }
 
@@ -46,67 +43,145 @@ alias pb.style.players {
   return 
 }
 alias pb.style.promote {
-  ;the character &players is replaced by the number of players
+  ; the character &players is replaced by the number of players
   return &players player(s) needed for a UT99 iCTF ZP pickup war @ $pb.channel
 }
 
 alias pb.channel.autovoice {
-  ;if every user is voiced, default $false
+  ; if every user is voiced, default $false
   return $false
 }
 
 alias pb.channel.voice {
-  ;if a player which will play will be voiced
+  ; if a player which will play will be voiced
   return $true
 }
 
 alias pb.auth {
-  ;you can enter the AUTH data here, for authing on quakenet
-  ;msg Q@cserve.quakenet.org AUTH name password
-  ;uncomment this line to use it.
+  ; you can enter the AUTH data here, for authing on quakenet
+  ; uncomment this line to use it.
+  ; msg Q@cserve.quakenet.org AUTH name password
 }
 
 alias pb.players {
-  ;maximum number of players, for 5on5 this is 10, for 2on2 it is 4 etc.
-  return 4
-}
-
-alias pb.time {
-  ;total time of 1 game, in seconds.
-  return 3000
-  ; 3000=50 mins, 2x20mins + some 'connection' time
+  ; maximum number of players, for 5on5 this is 10, for 2on2 it is 4 etc.
+  return 2
 }
 
 alias pb.serverline {
-  ;use &team (returns: RED/BLUE) for the team.
-  ;use &captain (returns: YES/NO) to say if somebody is a teamcaptain (BUGGED, please don't use)
-  ;feel free to modify this line so it suits your needs:)
-  return The pickup game is starting, go to the server and have fun:) - Server ip: xxxx password: xxxx - TS: xxxx pass: xxxx - Team: &team
+  ; feel free to modify this line so it suits your needs.
+  ; use &gamepass to return the game password.
+  ; use &team (returns: RED/BLUE) for the team.
+  ; use &captain (returns: YES/NO) to say if somebody is a teamcaptain (BUGGED, please don't use)
+
+  return The pickup game is starting - Server IP: xxxx Password: &gamepass - TS3: xxxx Password: xxxx - Team: &team
 }
 
 alias pb.playing {
-  ;change this line if you want
-  ;use &time to refer to the number of minutes + seconds left
+  ; change this line if you want
+  ; use &time to refer to the number of minutes + seconds left
   return A pickup game is being played right now. (&time remaining)
 }
 
 alias pb.reporter {
-  ;this line is used to spam a reporter channel
-  return Reporter in #reporter
+  ; this line is used to spam a reporter channel
+  return Reporter in #channel
 }
 
 alias pb.allowteams {
-  ;NEW IN 1.6D
-  ;set this to $false to enable forces random teams, so people cannot vote!
+  ; set this to $false to enable forces random teams, so people cannot vote!
   ; $true = people can add to a team.
   return $true
 }
 
+/* --------------------------------------------------------------------------
+*  -- Uses Mavericks IRC Reporter XR3 Gambino Edition as server controller --
+*  -- https://github.com/sn3p/MvReporter                                   --
+* ---------------------------------------------------------------------------
+*/
 
-/* ----------------------------------
+; -- CONFIG --
+
+alias pb.repbotnick {
+  ; repbot nickname
+  return pickupbot1
+}
+
+alias pb.repbotnick2 {
+  ; second repbot nickname (use $false if not used)
+  return pickupbot2
+}
+
+alias pb.repbotpass {
+  ; repbot admin password
+  return pickupbotpass
+}
+
+alias pb.repbotmask {
+  ; repbot hostmask for security
+  return *!*@*
+}
+
+alias pb.randomizepass {
+  ; reset random gamepassword every pug ($true or $false)
+  return $true
+}
+
+; -- METHODS --
+
+alias -l pb.isrepbot {
+  ; $1 = nick
+  if (($pb.repbotnick == $1 || $pb.repbotnick2 == $1) && $address($1,2) == $pb.repbotmask) {
+    return $true
+  }
+  else {
+    return $false
+  }
+}
+
+alias -l pb.randomstring {
+  ; $1 = pass length (defaults to 8)
+  return $(,$str($!r(a,z) $!+ $chr(32), $iif($1 != $null, $1, 8)))
+}
+
+alias -l pb.servergamepass {
+  ; $1 = gamepass (if provided)
+  if ($1 == $null) {
+    ; get
+    msg $pb.repbotnick gamepassword $pb.repbotpass
+  }
+  else {
+    ; set
+    msg $pb.repbotnick gamepassword $pb.repbotpass $1
+  }
+}
+
+alias -l pb.servertravel {
+  ; $1 = map
+  msg $pb.getchannel Switching map to $1
+  ; if ($pb.repbotnick isop $pb.getchannel)
+  if (($pb.repbotnick ison $pb.getchannel || $pb.repbotnick ison $pb.adminchan) && $address($pb.repbotnick,2) == $pb.repbotmask) {
+    msg $pb.repbotnick servertravel $pb.repbotpass $1
+  }
+  else {
+    msg $pb.getchannel Could not set the server ...
+  }
+}
+
+alias -l pb.echoplaying {
+  if (($pb.repbotnick ison $pb.getchannel || $pb.repbotnick ison $pb.adminchan) && $address($pb.repbotnick,2) == $pb.repbotmask) {
+    msg $pb.repbotnick remainingtime $pb.repbotpass
+  }
+  else {
+    msg $pb.adminchan ERROR: Could not find reporterbot ...
+  }
+}
+
+
+/* --------------------------------------------------------------------------
 *  -- STOP CHANGING ANYTHING HERE. --
 *  -- The bot may stop working correctly if you change anything below --
-* ----------------------------------
+* ---------------------------------------------------------------------------
 */
 
 alias pb.channel {
@@ -114,22 +189,22 @@ alias pb.channel {
 }
 
 alias pb.credits {
-  return 07[4- 14P07ickupbot 14v07ersion $pb.version 4- 14b07y 14M07oeh14M07an 4- 07www.moehman.nl 4-07]
+  return 07[- Pickupbot version $pb.version 04Gambino Edition - by MoehMan and sn3p 07-]
 }
 
 alias pb.version {
-  return 1.6d
+  return 1.6e
 }
 
-; -- PICKUP FUNCTIONS -- 
+; -- PICKUP FUNCTIONS --
 
 alias -l pb.init {
-  ;init bot
+  ; init bot
   set %pb.active $true
-  hmake pb.users 10 ;create hash table, for users
-  hmake pb.maps 10 ;create hash table for maps,load from file
-  hmake pb 20 ;misc table
-  hmake pb.hist 200 ;history, players with their host
+  hmake pb.users 10 ; create hash table, for users
+  hmake pb.maps 10 ; create hash table for maps,load from file
+  hmake pb 20 ; misc table
+  hmake pb.hist 200 ; history, players with their host
   hmake pb.bans 10
   hadd pb pickup 0
   pb.getmaps
@@ -174,7 +249,7 @@ nickname identd@host.ext
 */
 
 alias pb.reset {
-  ;reset the bot
+  ; reset the bot
   hfree pb.users
   hmake pb.users 10
   hdel -w pb.maps *
@@ -183,7 +258,7 @@ alias pb.reset {
 }
 
 alias pb.save {
-  ;save all
+  ; save all
   hsave pb.maps pickup.maps.txt
   hsave pb.hist pickup.hist.txt
   hsave pb pickup.misc.txt
@@ -209,14 +284,19 @@ alias pb.done {
   }
   pb.reset
   unset %pb.game*
-  msg $pb.channel You can sign up again!
-  timer$done off
+
+  ; reset to random gamepass?
+  if (pb.randomizepass) {
+    pb.servergamepass $pb.randomstring
+  }
+
+  msg $pb.channel Pickup has finished. You can sign up again!
 }
 
 alias -l pb.savepickup {
   ; $1 = lognumber
   hmake pb.log
-  ;save this pickup
+  ; save this pickup
   hadd pb.log number %number
   set %n 0
   set %m 1
@@ -283,9 +363,8 @@ alias -l pb.devoiceall {
   }
 }
 
-
 alias -l pb.getmaps {
-  ;get from file
+  ; get from file
   if ($isfile(pickup.maps.txt) == $true) {
     hload pb.maps pickup.maps.txt
   }
@@ -299,7 +378,7 @@ alias -l pb.addmap {
     if (%pb.map == $1) {
       return %n
     }
-    if (%pb.map == $null) { 
+    if (%pb.map == $null) {
       break
     }
     inc %n
@@ -309,51 +388,61 @@ alias -l pb.addmap {
 
 alias -l pb.delmap {
   set %map $pb.findmap($1)
-  if (%map != 0) {
+  if (%map) {
     hdel pb.maps %map
     unset %map
   }
 }
 
 alias -l pb.findmap {
-  ;$1 = map
-  set %i 100
-  set %n 1
-  while (%n <= %i) {
-    set %pb.map $hget(pb.maps,%n)
-    if (%pb.map == $1) {
-      return %n
+  ; $1 = map
+  ; number
+  if ($1 isnum) {
+    set %pb.map $hget(pb.maps,$1)
+    if (%pb.map != $null) {
+      return $1
     }
-    inc %n
+  }
+  ; string
+  else {
+    set %i $hget(pb.maps).size
+    set %n 1
+    while (%n <= %i) {
+      set %pb.map $hget(pb.maps,%n)
+      if (%pb.map == $1) {
+        ;return %pb.map
+        return %n
+      }
+      inc %n
+    }
   }
   return 0
 }
 
 alias -l pb.addvote {
-  ;$1map $2nickname
-  ;map exists
+  ; $1 = map, $2 = nickname
   unset %pb.maps
   if ($pb.isuser($2) == $false) { return $false }
   set %pb.votemap $pb.findmap($1)
-  if (%pb.votemap == 0) {
-    ;map does not exist
-    msg $pb.getchannel Allowed maps: $pb.getmaplist
+  if (%pb.votemap > 0) {
+    hadd pb.users $pb.getuser($2) $$+ .voted %pb.votemap
+    notice $2 You voted for $hget(pb.maps,%pb.votemap)
   }
   else {
-    hadd pb.users $pb.getuser($2) $$+ .voted %pb.votemap
-    notice $2 You voted for $1
+    ; map does not exist
+    msg $pb.getchannel Maplist: $pb.getmaplist
   }
 }
 
 alias -l pb.getmaplist {
   unset %pb.maps
-  set %i 100
+  set %i $hget(pb.maps).size
   set %n 1
   while (%n <= %i) {
     set %pb.map $hget(pb.maps,%n)
     if (%pb.map != $null) {
       set %pb.map.votes $pb.getmapvotes(%n)
-      set %pb.maps %pb.maps $$+  $pb.style.chan [ $+ [ $calc( ( %n % 3 ) + 1 ) ] ] $$+ %pb.map $$+ ( $$+ %pb.map.votes $$+ )
+      set %pb.maps %pb.maps $$+  $pb.style.chan [ $+ [ $calc((%n % 3) + 1) ] ] $+  $+ %n $+ . $$+ %pb.map $$+ ( $$+ %pb.map.votes $$+ )
     }
     inc %n
   }
@@ -363,7 +452,7 @@ alias -l pb.getmaplist {
 alias -l pb.findvotewinner {
   set %curmap $null
   set %curmapvotes -1
-  set %i 100
+  set %i $hget(pb.maps).size
   set %n 1
   while (%n <= %i) {
     set %pb.map $hget(pb.maps,%n)
@@ -404,7 +493,7 @@ alias -l pb.isuser {
     }
     inc %m
   }
-  ;player not added
+  ; player not added
   return $false
 }
 
@@ -419,21 +508,20 @@ alias -l pb.getuser {
     }
     inc %m
   }
-  ;player not added
+  ; player not added
   return $false
 }
 
 alias -l pb.adduser {
   ; $1=nickname $2=*!identd@host $3=$null/red/blue
-  set %number $hget(pb,pickup)
-  if (%number > 0) {
-    msg $pb.channel $replace($pb.playing,&time,$asctime($calc(%number - $ctime),nn:ss))
+  set %pickup $hget(pb,pickup)
+  if (%pickup > 0) {
+    pb.echoplaying
     return 0
   }
   if ($pb.isuser($1) == $true) {
-    halt
+    return
   }
-
   set %m 1
   set %player 1
   while (%m <= $pb.players) {
@@ -443,7 +531,7 @@ alias -l pb.adduser {
     }
     inc %m
   }
-  ;player not added
+  ; player not added
   unset %tmp
   set %tmp %m $$+ .team
   hadd pb.users %m $1
@@ -462,7 +550,7 @@ alias -l pb.adduser {
     mode $pb.channel +v $1
   }
   hadd pb.hist $1 $2
-  ;add user to history
+  ; add user to history
   notice $1 You are added! Please vote for your favorite map (!vote mapname)
   if ($pb.players != $pb.getnumplayers) {
     pb.usermsg
@@ -488,8 +576,8 @@ alias -l pb.deluser {
 }
 
 alias -l pb.isrunning {
-  set %number $hget(pb,pickup)
-  if (%number > 0) {
+  set %pickup $hget(pb,pickup)
+  if (%pickup > 0) {
     return $true
   }
   else {
@@ -498,14 +586,14 @@ alias -l pb.isrunning {
 }
 
 alias -l pb.getnumplayers {
-  ;number of players avail
+  ; number of players avail
   set %m 1
   set %player 1
   set %players 0
   while (%m <= $pb.players) {
     set %player $hget(pb.users,%m)
     if (%player != $null) {
-      inc %Players
+      inc %players
     }
     inc %m
   }
@@ -513,7 +601,7 @@ alias -l pb.getnumplayers {
 }
 
 alias -l pb.getplayers {
-  ;listing of all players avail
+  ; listing of all players avail
   set %m 1
   unset %players
   while (%m <= $pb.players) {
@@ -533,7 +621,7 @@ alias -l pb.getplayers {
 }
 
 alias -l pb.getcaptain {
-  ;$1=red/blue
+  ; $1=red/blue
   if ($1 == blue) {
     return %blue.captain
   }
@@ -541,6 +629,7 @@ alias -l pb.getcaptain {
     return %red.captain
   }
 }
+
 alias -l pb.redteam {
   set %n 1
   set %m 1
@@ -574,10 +663,10 @@ alias -l pb.blueteam {
 }
 
 alias -l pb.maketeams {
-  ;this alias is copied from version 1.8e5
-  ;verdeel spelers
-  ;check for too large teams
-  ;make captain
+  ; this alias is copied from version 1.8e5
+  ; verdeel spelers
+  ; check for too large teams
+  ; make captain
   var %red.players = 0
   var %blue.players = 0
   var %red = $null
@@ -592,17 +681,17 @@ alias -l pb.maketeams {
     var %cplayerc = $hget(pb.users,%m $$+ .captain )
     if ($pb.allowteams == $false) {
       var %cplayert = 0
-      ;choose a random team :)
+      ; choose a random team :)
     }
     if (%cplayert == 1) {
       if (%red.players >= %ppt) {
-        ;make him blue
+        ; make him blue
         %blue = %blue %m
         hadd pb.users %m $$+ .team 2
         inc %blue.players
       }
       else {
-        ;ok join red
+        ; ok join red
         %red = %red %m
         inc %red.players
       }
@@ -613,13 +702,13 @@ alias -l pb.maketeams {
     }
     elseif (%cplayert == 2) {
       if (%blue.players >= %ppt) {
-        ;make him red
+        ; make him red
         %red = %red %m
         hadd pb.users %m $$+ .team 1
         inc %red.players
       }
       else {
-        ;ok join blue
+        ; ok join blue
         %blue = %blue %m
         inc %blue.players
       }
@@ -630,7 +719,7 @@ alias -l pb.maketeams {
     }
     inc %m
   }
-  ;end, force ppl in a team, if they arent
+  ; end, force ppl in a team, if they arent
   if (%red.players != %ppt || %blue.players != %ppt) {
     var %rndt = $null
     var %m = 1
@@ -653,7 +742,7 @@ alias -l pb.maketeams {
           inc %blue.players
         }
         else {
-          ;add them to red...
+          ; add them to red...
           %tmp = %m $$+ .team
           %red = %red %m
           hadd pb.users %tmp 1
@@ -664,53 +753,70 @@ alias -l pb.maketeams {
     }
   }
   if (%red.captain == 0) {
-    ;select a random red captain
+    ; select a random red captain
     var %p = $rand(1,%ppt)
     set %red.captain $hget(pb.users,$gettok(%red,%p,32))
     hadd pb.users %p $$+ .captain 1
     echo 4 -s captain red: %p %red.captain
   }
   if (%blue.captain == 0) {
-    ;select a random blue captain
+    ; select a random blue captain
     %p = $rand(1,%ppt)
     set %blue.captain $hget(pb.users,$gettok(%blue,%p,32))
     hadd pb.users %p $$+ .captain 1
     echo 4 -s captain red: %p %red.captain
   }
-  ;pff finaly, we have all players signed up, and every team has a captain.
-  ;now GOGOGO
+  ; pff finaly, we have all players signed up, and every team has a captain.
+  ; now GOGOGO
 }
 
 alias pb.checkgo {
-  ;check if the pickup can start
+  ; check if the pickup can start
   if ($pb.players == $pb.getnumplayers) {
-    ;start
-    hadd pb pickup $calc($ctime + $pb.time)
+    .timer 1 0 pb.votemaptime 15
+    .timer 1 10 pb.votemaptime 5
+    .timer 1 15 pb.go
+  }
+}
+
+alias pb.votemaptime {
+  ; check if we still have enough players
+  if ($pb.players == $pb.getnumplayers) {
+    msg $pb.channel $1 seconds left to vote map!
+  }
+}
+
+alias pb.go {
+  ; check if we still have enough players
+  if ($pb.players == $pb.getnumplayers) {
+    hadd pb pickup 1
     set %number $hget(pb,number)
     inc %number
     hadd pb number %number
     pb.maketeams
     pb.savepickup
+    var %votewinner = $pb.findvotewinner
     .timer 1 0 msg $pb.channel Pickup game number %number is starting now!
     .timer 1 2 msg $pb.channel 4Red Team: Captain:  $$+ $pb.getcaptain(red) $$+  Players: $pb.redteam
     .timer 1 2 msg $pb.channel 12Blue Team: Captain:  $$+ $pb.getcaptain(blue) $$+  Players: $pb.blueteam
-    .timer 1 3 msg $pb.channel Map: $pb.findvotewinner
+    .timer 1 3 msg $pb.channel Map: %votewinner
     .timer 1 4 msg $pb.channel Server address and password will be send to you in a private message.
-    set %m 1
-    while (%m <= $pb.players) {
-      .timer 1 $calc(%m * 5) .msg $hget(pb.users,%m) $replace($replace($pb.serverline,&team,$iif($hget(pb.users,%m $$+ .team) == 1,4RED,12BLUE)),&captain,$iif($hget(pb.users,%m $$+ .captain) == 1,YES,NO))
-      inc %m
-    }
-    .timer$done 1 $pb.time pb.done
+
+    ; ask repbot for gamepass and pm players
+    pb.servergamepass
+
+    ; set the server to voted map
+    pb.servertravel %votewinner
+
     set %pb.gameover.users $null
-    set %pb.gameover $calc( $pb.players / 2 )
+    set %pb.gameover $calc($pb.players / 2)
   }
 }
 
 alias -l pb.usermsg {
-  set %number $hget(pb,pickup)
-  if (%number > 0) {
-    msg $pb.channel $replace($pb.playing,&time,$asctime($calc(%number - $ctime),nn:ss))
+  set %pickup $hget(pb,pickup)
+  if (%pickup > 0) {
+    pb.echoplaying
   }
   elseif ($calc($pb.players - $pb.getnumplayers) == $pb.players) {
     msg $pb.channel $pb.style.players $$+ Nobody signed up for a game. Signup with !add [red/blue]
@@ -725,7 +831,7 @@ Ban functions
 */
 
 alias -l pb.checkban {
-  ;$1 = mask
+  ; $1 = mask
   set %chans $chan(0)
   set %p 0
   while (%p <= %chans) {
@@ -855,7 +961,7 @@ alias pb.checkunban {
 }
 
 alias pb.maketime {
-  ;make time
+  ; make time
   ; s=seconds, m=minutes, h=hours, d=days, y=years
   ; $1 = line
   ; example: 10d2h5s
@@ -889,7 +995,7 @@ alias pb.maketime {
         if (%pb.case == s) {
           set %pb.tm $calc( %pb.tm + ( %pb.num ) )
         }
-      } 
+      }
       set %pb.num $null
     }
     unset %pb.case
@@ -898,37 +1004,44 @@ alias pb.maketime {
   return %pb.tm
 }
 
-; -- PICKUP EVENTS -- 
+; -- PICKUP EVENTS --
 
 on *:TEXT:*:#: {
-  ;yeah baby
+  ; yeah baby
   if ($chan == $pb.channel) {
     if (%pb.active == $true) {
       if ($1 == !add) {
         pb.adduser $nick $address($nick,0) $2
       }
-      if ($1 == !addme) {
+      elseif ($1 == !test) {
+        pb.findmap2 $2
+      }
+      elseif ($1 == !addme) {
         pb.adduser $nick $address($nick,0) $2
       }
-      if ($1 == !remove || $1 == !leave || $1 == !removeme && $pb.isrunning == $false) {
+      elseif ($1 == !remove || $1 == !leave || $1 == !removeme && $pb.isrunning == $false) {
         pb.deluser $nick
       }
-      if ($1 == !status) {
+      elseif ($1 == !status) {
         pb.usermsg
       }
-      if ($1 == !report || $1 == !reporter) {
+      elseif ($1 == !report || $1 == !reporter) {
         msg $pb.channel $pb.reporter
       }
-      if ($1 == !vote && $pb.isrunning == $false) {
+      elseif ($1 == !vote && $pb.isrunning == $false) {
         if ($2 == $null) {
-          msg $pb.getchannel Allowed maps: $pb.getmaplist
+          msg $pb.getchannel Maplist: $pb.getmaplist
         }
         else {
           pb.addvote $2 $nick
         }
       }
-      if ($1 == !team && $pb.isrunning == $false && $pb.allowteams == $true) {
-        if ($pb.isuser($nick) == $false) { halt }
+      elseif ($1 == !maps || $1 == !maplist) {
+        msg $pb.getchannel Maplist: $pb.getmaplist
+      }
+      elseif ($1 == !team && $pb.isrunning == $false && $pb.allowteams == $true) {
+        ; if ($pb.isuser($nick) == $false) { halt }
+        if ($pb.isuser($nick) == $false) { return }
         set %n 0
         set %m 1
         set %player 1
@@ -940,10 +1053,11 @@ on *:TEXT:*:#: {
           inc %m
         }
         if (%m > $pb.players) {
-          ;not here
-          halt
+          ; not here
+          ; halt
+          return
         }
-        ;check for parameters
+        ; check for parameters
         if ($2 == red) {
           hadd pb.users %m $$+ .team 1
           notice $nick You are now on 4RED
@@ -964,20 +1078,18 @@ on *:TEXT:*:#: {
             set %pb.team2 blue
           }
           msg $pb.channel $nick $$+ : You are currently on the %pb.team2 team
-
           unset %pb.team
         }
-
       }
-      if ($1 == !promote && $pb.isrunning == $false) {
-        set %number $hget(pb,pickup)
-        if (%number > 0) {
+      elseif ($1 == !promote && $pb.isrunning == $false) {
+        set %pickup $hget(pb,pickup)
+        if (%pickup > 0) {
         }
         else {
           msg $pb.channel $replace($pb.style.promote,&players,$calc($pb.players - $pb.getnumplayers))
         }
       }
-      if ($1 == !gameover) {
+      elseif ($1 == !gameover) {
         if ($pb.isuser($nick) == $true && $pb.isrunning == $true) {
           if ($findtok(%pb.gameover.users,$nick,1,32) == $null) {
             dec %pb.gameover
@@ -994,38 +1106,47 @@ on *:TEXT:*:#: {
     }
   }
   if ($chan == $pb.channel || $chan == $pb.adminchan) {
+
+    if ($pb.isrepbot($nick) == $true) {
+      if ($(*Game has ended!) iswm $1-) {
+        if ($hget(pb,pickup)) {
+          pb.done
+        }
+      }
+    }
+
     if ($nick isop $chan) {
       if ($1 == !reset) {
         pb.done
       }
-      if ($1 == !save) {
+      elseif ($1 == !save) {
         pb.save
       }
-      if ($1 == !stats) {
+      elseif ($1 == !stats) {
         msg $chan [Stats] $hget(pb,number) pickups have been played!
       }
-      if ($1 == !addmap) {
+      elseif ($1 == !addmap) {
         pb.addmap $2
         pb.save
       }
-      if ($1 == !delmap) {
+      elseif ($1 == !delmap) {
         pb.delmap $2
         pb.save
       }
-      if ($1 == !start) {
+      elseif ($1 == !start) {
         set %pb.active $true
         msg $chan Bot activated
       }
-      if ($1 == !stop) {
+      elseif ($1 == !stop) {
         set %pb.active $false
         msg $chan Bot deactivated
       }
-      if ($1 == !kill) {
+      elseif ($1 == !kill) {
         pb.save
         quit
       }
-      if ($1 == !showlog) {
-        ;this sux, the layout. Just make a way to process it. no time atm for that:p
+      elseif ($1 == !showlog) {
+        ; this sux, the layout. Just make a way to process it. no time atm for that :p
         if ($2 != $null) {
           hmake pb.log
           hload pb.log pickuplog. $$+ $2 $$+ .txt
@@ -1038,7 +1159,7 @@ on *:TEXT:*:#: {
           hfree pb.log
         }
       }
-      if ($1 == !host) {
+      elseif ($1 == !host) {
         if ($2 != $null) {
           set %host $hget(pb.hist,$2)
           if (%host == $null) {
@@ -1050,23 +1171,23 @@ on *:TEXT:*:#: {
           unset %host
         }
       }
-      if ($1 == !kb || $1 == !b || $1 == !ban || $1 == !kick || $1 == !k ) {
-        ;kickban feature
-        ;!kb nickname duration why
+      elseif ($1 == !kb || $1 == !b || $1 == !ban || $1 == !kick || $1 == !k ) {
+        ; kickban feature
+        ; !kb nickname duration why
         if ($2 != $null && $3 != $null && $4 != $null) {
           pb.addban $2 $3 $4-
           notice $nick Your target ( $$+ $2 $$+ ) has been banned!
           pb.save
         }
       }
-      if ($1 == !fban || $1 == !findban) {
+      elseif ($1 == !fban || $1 == !findban) {
         if ($2 != $null) {
           set %banfound $pb.findban($2,$3)
           msg $chan $iif(%banfound == $null,[Notice] No ban was found,[Notice] Found ban: %banfound)
           unset %banfound
         }
       }
-      if ($1 == !delban || $1 == !remban) {
+      elseif ($1 == !delban || $1 == !remban) {
         if ($2 != $null) {
           pb.delban $2
           pb.save
@@ -1081,8 +1202,33 @@ on *:TEXT:*:#: {
   reseterror
 }
 
+; handle notices
+on *:NOTICE:*:?: {
+  if ($pb.isrepbot($nick) == $true) {
+    ; remainingtime: <int>
+    if ($regex($1-, /^remainingtime: (.*)$)/) {
+      var %value = $regml(1)
+      var %msg = $replace($pb.playing, &time, $asctime($regml(1), nn:ss))
+      if (%value == 0) {
+        %msg = %msg (Sudden Death Overtime)
+      }
+      msg $pb.channel %msg
+    }
+    ; gamepassword: <string>
+    elseif ($regex($1-, /^gamepassword: (.*)$)/) {
+      ; msg $pb.adminchan gamepassword: $regml(1)
+      var %msg = $replace($pb.serverline, &gamepass, $regml(1))
+      var %i = 1
+      while (%i <= $pb.players) {
+        ; .timer 1 $calc(%i * 5) .msg $hget(pb.users, %i) $replace($replace($pb.serverline, &team, $iif($hget(pb.users, %i $$+ .team) == 1, 4RED, 12BLUE)), &captain, $iif($hget(pb.users, %i $$+ .captain) == 1, YES, NO))
+        .timer 1 $calc(%i * 5) .msg $hget(pb.users, %i) $replace(%msg, &team, $iif($hget(pb.users, %i $$+ .team) == 1, 4RED, 12BLUE))
+        inc %i
+      }
+    }
+  }
+}
 
-; -- OTHER -- 
+; -- OTHER --
 
 on *:START: {
   echo -s Pickupbot starting...
@@ -1097,7 +1243,6 @@ on *:START: {
 }
 
 on *:NICK: {
-  ;nickchange
   if ($pb.isuser($nick) == $true) {
     hadd pb.users $pb.getuser($nick) $newnick
   }
@@ -1126,11 +1271,12 @@ on *:JOIN:#: {
   if ($nick == $me) {
     who $chan
     msg # $pb.credits
-    ;update IAL
-    ;now check for lamers
+    ; update IAL
+    ; now check for lamers
     .timer 1 10 pb.checklamers
   }
 }
+
 on *:KICK:#: {
   if ($pb.isuser($knick) == $true && $chan == $pb.channel) {
     pb.deluser $knick
@@ -1156,8 +1302,6 @@ on *:CONNECT: {
   pb.dojoin
 }
 
-
-
 alias pb.dojoin {
   if ($server != $null) {
     pb.auth
@@ -1166,17 +1310,23 @@ alias pb.dojoin {
       join $pb.adminchan
     }
     mode $me +ix
+
+    ; reset to random gamepass?
+    if ($pb.randomizepass) {
+      pb.servergamepass $pb.randomstring
+    }
   }
 }
 
 ctcp *:*:*:{
-  if (%pb.ctcp == 1) { 
-    halt 
+  if (%pb.ctcp == 1) {
+    ; halt
+    return
   }
   else {
-    if ($istok(version userinfo clientinfo script,$1,32)) { 
+    if ($istok(version userinfo clientinfo script,$1,32)) {
       set -u60 %pb.ctcp 1
-      .ctcpreply $nick VERSION 07[4- 14P07ickupbot 14v07ersion $pb.version 4- 14b07y 14M07oeh14M07an 4- 07www.moehman.nl 4-07]
+      .ctcpreply $nick VERSION 07[- Pickupbot version $pb.version - 04Gambino Edition 07-]
     }
   }
 }
