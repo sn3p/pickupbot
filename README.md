@@ -1,4 +1,4 @@
-# pickupbot
+# UT99 Pickupbot
 
 mIRC Pickupbot for Unreal Tournament 99.  
 Originally created for Project F.R.A.G. by MoehMan ([v1.6d](https://github.com/sn3p/pickupbot/releases/tag/1.6d)).
